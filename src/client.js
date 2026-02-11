@@ -3,7 +3,7 @@ const {
   SendGridProvider,
   MSGraphProvider,
   OutlookProvider
-} = require('./providers');
+} = require('./config/providers');
 
 /**
  * EmailClient

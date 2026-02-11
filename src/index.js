@@ -5,7 +5,7 @@
 
 const EmailClient = require('./client');
 const createEmailRouter = require('./middleware/emailRouter');
-const providers = require('./providers');
+const providers = require('./config/providers');
 
 // Main export
 module.exports = EmailClient;
