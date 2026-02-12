@@ -1,0 +1,19 @@
+{
+  "testMode": false,
+  "port": 3000,
+  "secretStore": {
+    "type": "local",
+    "config": {
+      "secretsPath": "./config/secrets"
+    }
+  },
+  "providers": {
+    "configPath": "./config/providers",
+    "activeProvider": "gmail-marketing",
+    "defaultProvider": "sendgrid-prod"
+  },
+  "logging": {
+    "level": "info",
+    "file": "./logs/email-service.log"
+  }
+}
