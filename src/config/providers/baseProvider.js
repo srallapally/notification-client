@@ -4,6 +4,7 @@
  * Abstract class that all email providers must extend
  */
 
+const validator = require('validator');
 const DEFAULT_TIMEOUT_MS = 30000;
 
 class BaseEmailProvider {
@@ -145,8 +146,7 @@ class BaseEmailProvider {
    * @returns {boolean} True if valid
    */
   isValidEmail(email) {
-    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return re.test(email);
+    return typeof email === 'string' && validator.isEmail(email);
   }
 
   /**
