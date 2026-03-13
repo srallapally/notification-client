@@ -67,10 +67,22 @@ class EmailClient {
    */
   async initialize() {
     if (this.initialized) {
-      this.logger.warn('EmailClient already initialized');
       return;
     }
 
+    if (this._initializing) {
+      return this._initializing;
+    }
+
+    this._initializing = this._doInitialize();
+    try {
+      await this._initializing;
+    } finally {
+      this._initializing = null;
+    }
+  }
+
+  async _doInitialize() {
     this.logger.info('Initializing email client...');
 
     const dependencies = {
