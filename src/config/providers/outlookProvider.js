@@ -77,7 +77,7 @@ class OutlookProvider extends BaseEmailProvider {
     }
 
     try {
-      const info = await this.transporter.sendMail(mailOptions);
+      const info = await this.withRetry(() => this.transporter.sendMail(mailOptions));
       this.logger.info(`Email sent via Outlook: ${info.messageId}`);
 
       return {
@@ -87,6 +87,9 @@ class OutlookProvider extends BaseEmailProvider {
       };
     } catch (error) {
       this.logger.error(`Outlook send failed: ${error.message}`);
+      if (error.code === 'RATE_LIMITED') {
+        throw error;
+      }
       const err = new Error(`Failed to send email: ${error.message}`);
       err.code = 'SEND_FAILED';
       throw err;

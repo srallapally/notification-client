@@ -15,6 +15,13 @@ class BaseEmailProvider {
     this.encryption = dependencies.encryption;
     this.credentials = null;
     this.timeout = config.timeout || DEFAULT_TIMEOUT_MS;
+
+    const retry = config.retry || {};
+    this.retryConfig = {
+      maxAttempts: retry.maxAttempts || 3,
+      baseDelay: retry.baseDelay || 1000,
+      maxDelay: retry.maxDelay || 10000
+    };
   }
 
   /**
@@ -168,6 +175,103 @@ class BaseEmailProvider {
     }
 
     return normalized;
+  }
+
+  /**
+   * Execute a function with retry and exponential backoff
+   * @param {function} fn - Async function to execute
+   * @returns {*} Result of fn
+   */
+  async withRetry(fn) {
+    let lastError;
+
+    for (let attempt = 0; attempt < this.retryConfig.maxAttempts; attempt++) {
+      try {
+        return await fn();
+      } catch (error) {
+        lastError = error;
+
+        if (!this.isRetryable(error)) {
+          throw error;
+        }
+
+        if (attempt < this.retryConfig.maxAttempts - 1) {
+          const delay = this.getRetryDelay(error, attempt);
+          this.logger.warn(`Retryable error (attempt ${attempt + 1}/${this.retryConfig.maxAttempts}), retrying in ${delay}ms: ${error.message}`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+      }
+    }
+
+    // Retries exhausted
+    if (this.isRateLimited(lastError)) {
+      const err = new Error(`Rate limited after ${this.retryConfig.maxAttempts} attempts: ${lastError.message}`);
+      err.code = 'RATE_LIMITED';
+      throw err;
+    }
+
+    throw lastError;
+  }
+
+  /**
+   * Determine if an error is retryable
+   * @param {Error} error - The error to check
+   * @returns {boolean}
+   */
+  isRetryable(error) {
+    // Network timeouts
+    if (error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT' || error.code === 'ECONNRESET') {
+      return true;
+    }
+
+    // SMTP transient errors (4xx class)
+    if (error.responseCode && error.responseCode >= 400 && error.responseCode < 500) {
+      return true;
+    }
+
+    // HTTP status-based (axios errors)
+    const status = error.response?.status;
+    if (status === 429 || status === 502 || status === 503 || status === 504) {
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * Check if error is specifically a rate limit
+   * @param {Error} error
+   * @returns {boolean}
+   */
+  isRateLimited(error) {
+    return error.response?.status === 429;
+  }
+
+  /**
+   * Calculate retry delay, honoring Retry-After header for 429s
+   * @param {Error} error
+   * @param {number} attempt - Zero-based attempt number
+   * @returns {number} Delay in milliseconds
+   */
+  getRetryDelay(error, attempt) {
+    // Honor Retry-After header if present
+    const retryAfter = error.response?.headers?.['retry-after'];
+    if (retryAfter) {
+      const parsed = Number(retryAfter);
+      if (!isNaN(parsed)) {
+        return parsed * 1000;
+      }
+      // Retry-After can also be an HTTP date
+      const date = Date.parse(retryAfter);
+      if (!isNaN(date)) {
+        return Math.max(0, date - Date.now());
+      }
+    }
+
+    // Exponential backoff with jitter
+    const exponential = this.retryConfig.baseDelay * Math.pow(2, attempt);
+    const jitter = Math.random() * this.retryConfig.baseDelay;
+    return Math.min(exponential + jitter, this.retryConfig.maxDelay);
   }
 }
 

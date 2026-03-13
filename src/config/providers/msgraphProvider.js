@@ -79,7 +79,7 @@ class MSGraphProvider extends BaseEmailProvider {
     }
 
     try {
-      const response = await axios.post(
+      const response = await this.withRetry(() => axios.post(
           `https://graph.microsoft.com/v1.0/users/${this.config.fromAddress}/sendMail`,
           {
             message: message,
@@ -92,7 +92,7 @@ class MSGraphProvider extends BaseEmailProvider {
             },
             timeout: this.timeout
           }
-      );
+      ));
 
       const messageId = response.headers['request-id'] || 'msgraph-' + Date.now();
       this.logger.info(`Email sent via MSGraph: ${messageId}`);
@@ -103,6 +103,9 @@ class MSGraphProvider extends BaseEmailProvider {
       };
     } catch (error) {
       this.logger.error(`MSGraph send failed: ${error.message}`);
+      if (error.code === 'RATE_LIMITED') {
+        throw error;
+      }
       const err = new Error(`Failed to send email: ${error.response?.data?.error?.message || error.message}`);
       err.code = 'SEND_FAILED';
       throw err;
