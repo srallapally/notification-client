@@ -5,7 +5,9 @@
  */
 
 const validator = require('validator');
+const { inspect } = require('util');
 const DEFAULT_TIMEOUT_MS = 30000;
+const CREDENTIAL_METADATA_KEYS = ['secretName', 'encrypted'];
 
 class BaseEmailProvider {
   constructor(config, dependencies = {}) {
@@ -55,31 +57,67 @@ class BaseEmailProvider {
     }
 
     try {
+      let raw;
+
       // If secretStore provided and secretName specified
       if (this.secretStore && credConfig.secretName) {
-        this.credentials = await this.secretStore.getSecret(credConfig.secretName);
+        raw = await this.secretStore.getSecret(credConfig.secretName);
         this.logger.debug('Loaded credentials from secret store');
-        return;
       }
-
       // If encryption service provided
-      if (this.encryption && credConfig.encrypted) {
-        this.credentials = {};
+      else if (this.encryption && credConfig.encrypted) {
+        raw = {};
         for (const [key, value] of Object.entries(credConfig)) {
-          if (key !== 'encrypted') {
-            this.credentials[key] = this.encryption.decrypt(value);
+          if (!CREDENTIAL_METADATA_KEYS.includes(key)) {
+            raw[key] = this.encryption.decrypt(value);
           }
         }
         this.logger.debug('Loaded encrypted credentials');
-        return;
+      }
+      // Use inline credentials (already decrypted or plain)
+      else {
+        raw = {};
+        for (const [key, value] of Object.entries(credConfig)) {
+          if (!CREDENTIAL_METADATA_KEYS.includes(key)) {
+            raw[key] = value;
+          }
+        }
+        this.logger.debug('Loaded inline credentials');
       }
 
-      // Use inline credentials (already decrypted or plain)
-      this.credentials = { ...credConfig };
-      this.logger.debug('Loaded inline credentials');
+      this.credentials = this._wrapCredentials(raw);
     } catch (error) {
       throw new Error(`Failed to load credentials: ${error.message}`);
     }
+  }
+
+  /**
+   * Wrap credentials so they cannot be accidentally serialized
+   * Property access works normally; JSON.stringify and console.log show [REDACTED]
+   * @param {object} raw - Plain credentials object
+   * @returns {object} Protected credentials
+   */
+  _wrapCredentials(raw) {
+    const redacted = {};
+    for (const key of Object.keys(raw)) {
+      redacted[key] = '[REDACTED]';
+    }
+
+    const wrapped = Object.create({
+      toJSON() { return redacted; },
+      [inspect.custom]() { return redacted; }
+    });
+
+    for (const [key, value] of Object.entries(raw)) {
+      Object.defineProperty(wrapped, key, {
+        value: value,
+        enumerable: false,
+        configurable: false,
+        writable: false
+      });
+    }
+
+    return Object.freeze(wrapped);
   }
 
   /**
