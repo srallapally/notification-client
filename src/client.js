@@ -1,3 +1,4 @@
+// src/client.js
 const {
   GmailProvider,
   SendGridProvider,
@@ -142,6 +143,9 @@ class EmailClient {
       error.code = 'NO_ACTIVE_PROVIDER';
       throw error;
     }
+
+    // Validate email data regardless of mode
+    this.activeProvider.validateEmailData(emailData);
 
     // Check test mode
     if (this.testMode) {
