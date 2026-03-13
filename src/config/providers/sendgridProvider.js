@@ -75,7 +75,7 @@ class SendGridProvider extends BaseEmailProvider {
     }
 
     try {
-      const response = await axios.post(
+      const response = await this.withRetry(() => axios.post(
           'https://api.sendgrid.com/v3/mail/send',
           payload,
           {
@@ -85,7 +85,7 @@ class SendGridProvider extends BaseEmailProvider {
             },
             timeout: this.timeout
           }
-      );
+      ));
 
       const messageId = response.headers['x-message-id'] || 'sendgrid-' + Date.now();
       this.logger.info(`Email sent via SendGrid: ${messageId}`);
@@ -96,6 +96,9 @@ class SendGridProvider extends BaseEmailProvider {
       };
     } catch (error) {
       this.logger.error(`SendGrid send failed: ${error.message}`);
+      if (error.code === 'RATE_LIMITED') {
+        throw error;
+      }
       const err = new Error(`Failed to send email: ${error.response?.data?.errors?.[0]?.message || error.message}`);
       err.code = 'SEND_FAILED';
       throw err;
