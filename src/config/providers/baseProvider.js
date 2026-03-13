@@ -1,7 +1,11 @@
+// src/config/providers/baseProvider.js
 /**
  * Base Email Provider
  * Abstract class that all email providers must extend
  */
+
+const DEFAULT_TIMEOUT_MS = 30000;
+
 class BaseEmailProvider {
   constructor(config, dependencies = {}) {
     this.config = config;
@@ -9,6 +13,7 @@ class BaseEmailProvider {
     this.secretStore = dependencies.secretStore;
     this.encryption = dependencies.encryption;
     this.credentials = null;
+    this.timeout = config.timeout || DEFAULT_TIMEOUT_MS;
   }
 
   /**
@@ -119,10 +124,10 @@ class BaseEmailProvider {
 
     // Validate email addresses
     const addresses = [].concat(
-      to,
-      emailData.cc || [],
-      emailData.bcc || [],
-      emailData.replyTo ? [emailData.replyTo] : []
+        to,
+        emailData.cc || [],
+        emailData.bcc || [],
+        emailData.replyTo ? [emailData.replyTo] : []
     ).filter(Boolean);
 
     for (const addr of addresses) {
