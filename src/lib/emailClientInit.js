@@ -1,5 +1,5 @@
 // lib/emailClientInit.js
-const EmailClient = require('notification-client');
+const EmailClient = require('../client');
 
 let client = null;
 
