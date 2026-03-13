@@ -1,3 +1,4 @@
+// src/config/providers/outlookProvider.js
 const nodemailer = require('nodemailer');
 const BaseEmailProvider = require('./baseProvider');
 
@@ -24,7 +25,10 @@ class OutlookProvider extends BaseEmailProvider {
       auth: {
         user: this.credentials.username,
         pass: this.credentials.password
-      }
+      },
+      connectionTimeout: this.timeout,
+      greetingTimeout: this.timeout,
+      socketTimeout: this.timeout
     });
 
     try {

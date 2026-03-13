@@ -1,3 +1,4 @@
+// src/config/providers/msgraphProvider.js
 const axios = require('axios');
 const BaseEmailProvider = require('./baseProvider');
 
@@ -23,7 +24,8 @@ class MSGraphProvider extends BaseEmailProvider {
       const response = await axios.post(tokenUrl, params, {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded'
-        }
+        },
+        timeout: this.timeout
       });
 
       this.accessToken = response.data.access_token;
@@ -78,17 +80,18 @@ class MSGraphProvider extends BaseEmailProvider {
 
     try {
       const response = await axios.post(
-        `https://graph.microsoft.com/v1.0/users/${this.config.fromAddress}/sendMail`,
-        {
-          message: message,
-          saveToSentItems: true
-        },
-        {
-          headers: {
-            'Authorization': `Bearer ${this.accessToken}`,
-            'Content-Type': 'application/json'
+          `https://graph.microsoft.com/v1.0/users/${this.config.fromAddress}/sendMail`,
+          {
+            message: message,
+            saveToSentItems: true
+          },
+          {
+            headers: {
+              'Authorization': `Bearer ${this.accessToken}`,
+              'Content-Type': 'application/json'
+            },
+            timeout: this.timeout
           }
-        }
       );
 
       const messageId = response.headers['request-id'] || 'msgraph-' + Date.now();

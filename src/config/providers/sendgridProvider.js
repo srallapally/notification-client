@@ -1,3 +1,4 @@
+// src/config/providers/sendgridProvider.js
 const axios = require('axios');
 const BaseEmailProvider = require('./baseProvider');
 
@@ -17,7 +18,8 @@ class SendGridProvider extends BaseEmailProvider {
       await axios.get('https://api.sendgrid.com/v3/scopes', {
         headers: {
           'Authorization': `Bearer ${this.apiKey}`
-        }
+        },
+        timeout: this.timeout
       });
 
       this.logger.info('SendGrid provider connected');
@@ -74,14 +76,15 @@ class SendGridProvider extends BaseEmailProvider {
 
     try {
       const response = await axios.post(
-        'https://api.sendgrid.com/v3/mail/send',
-        payload,
-        {
-          headers: {
-            'Authorization': `Bearer ${this.apiKey}`,
-            'Content-Type': 'application/json'
+          'https://api.sendgrid.com/v3/mail/send',
+          payload,
+          {
+            headers: {
+              'Authorization': `Bearer ${this.apiKey}`,
+              'Content-Type': 'application/json'
+            },
+            timeout: this.timeout
           }
-        }
       );
 
       const messageId = response.headers['x-message-id'] || 'sendgrid-' + Date.now();
